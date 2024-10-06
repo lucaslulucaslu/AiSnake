@@ -4,11 +4,11 @@ import time
 import heapq
 
 # Define constants
-GRID_WIDTH = 8
-GRID_HEIGHT = 8
+GRID_WIDTH = 24
+GRID_HEIGHT = 36
 CELL_SIZE = 15
 WIDTH, HEIGHT = GRID_WIDTH * CELL_SIZE, GRID_HEIGHT * CELL_SIZE
-INITIAL_DELAY = 100
+INITIAL_DELAY = 10
 
 # Define directions
 UP = (0, -1)
@@ -35,7 +35,7 @@ class SnakeGame:
 
     def start_game(self):
         self.running = True
-        self.snake = [(5, 5)]  # Reset initial snake position
+        self.snake = [(5, 5),(6,5),(7,5)]  # Reset initial snake position
         self.direction = RIGHT
         self.food = self.random_food_position()
 
