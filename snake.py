@@ -8,7 +8,7 @@ GRID_WIDTH = 24
 GRID_HEIGHT = 36
 CELL_SIZE = 15
 WIDTH, HEIGHT = GRID_WIDTH * CELL_SIZE, GRID_HEIGHT * CELL_SIZE
-INITIAL_DELAY = 10
+INITIAL_DELAY = 50
 
 # Define directions
 UP = (0, -1)
@@ -30,14 +30,26 @@ class SnakeGame:
     def setup_gui(self):
         self.root = tk.Tk()
         self.root.title("AI Snake Game")
+
+        self.score_label = tk.Label(self.root, text="Score: 0", font=("Helvetica", 14))
+        self.score_label.pack()
+
         self.canvas = tk.Canvas(self.root, width=WIDTH, height=HEIGHT, bg="black")
         self.canvas.pack()
 
+        # Keyboard bindings for manual control
+        self.root.bind("<Up>", lambda e: self.set_direction(UP))
+        self.root.bind("<Down>", lambda e: self.set_direction(DOWN))
+        self.root.bind("<Left>", lambda e: self.set_direction(LEFT))
+        self.root.bind("<Right>", lambda e: self.set_direction(RIGHT))
+
     def start_game(self):
         self.running = True
-        self.snake = [(5, 5),(6,5),(7,5)]  # Reset initial snake position
+        self.snake = [(5, 5), (6, 5), (7, 5)]  # Reset initial snake position
+        self.snake_segments_colors = ["green"] * len(self.snake)  # Initial snake segments color
         self.direction = RIGHT
         self.food = self.random_food_position()
+        self.food_color = "#%06x" % random.randint(0, 0xFFFFFF)
 
     def random_food_position(self):
         while True:
@@ -52,7 +64,6 @@ class SnakeGame:
         self.snake = [new_head] + self.snake
 
     def a_star(self, start, goal, avoid_tail=True):
-        """A* algorithm to find the shortest path from start to goal."""
         open_set = []
         heapq.heappush(open_set, (0, start))
         came_from = {}
@@ -74,9 +85,9 @@ class SnakeGame:
             for direction in DIRECTIONS:
                 neighbor = (current[0] + direction[0], current[1] + direction[1])
                 if not (0 <= neighbor[0] < GRID_WIDTH and 0 <= neighbor[1] < GRID_HEIGHT):
-                    continue  # Ignore out of bounds
+                    continue
                 if neighbor in body_set:
-                    continue  # Ignore collisions with the snake itself
+                    continue
 
                 tentative_g_score = g_score[current] + 1
 
@@ -86,24 +97,52 @@ class SnakeGame:
                     f_score[neighbor] = tentative_g_score + self.heuristic(neighbor, goal)
                     heapq.heappush(open_set, (f_score[neighbor], neighbor))
 
-        return []  # No path found
+        return []
 
     def heuristic(self, a, b):
-        """Calculate the Manhattan distance between two points."""
         return abs(a[0] - b[0]) + abs(a[1] - b[1])
+
+    def flood_fill_area(self, start):
+        queue = [start]
+        visited = set(queue)
+        body_set = set(self.snake)
+
+        count = 0
+        while queue:
+            current = queue.pop(0)
+            count += 1
+
+            for direction in DIRECTIONS:
+                neighbor = (current[0] + direction[0], current[1] + direction[1])
+                if (0 <= neighbor[0] < GRID_WIDTH and 0 <= neighbor[1] < GRID_HEIGHT and
+                    neighbor not in visited and neighbor not in body_set):
+                    queue.append(neighbor)
+                    visited.add(neighbor)
+
+        return count
 
     def ai_decide_direction(self):
         head = self.snake[0]
         path_to_food = self.a_star(head, self.food)
 
-        # Determine if following the path to the food will leave a safe route
         if path_to_food:
             next_step = path_to_food[0]
-            self.direction = (next_step[0] - head[0], next_step[1] - head[1])
+            if self.flood_fill_area(next_step) > len(self.snake):
+                self.direction = (next_step[0] - head[0], next_step[1] - head[1])
+            else:
+                self.move_to_tail()
         else:
-            # If no path to food, just continue in current direction
+            self.move_to_tail()
+
+    def move_to_tail(self):
+        tail = self.snake[-1]
+        path_to_tail = self.a_star(self.snake[0], tail, avoid_tail=False)
+        if path_to_tail:
+            next_step = path_to_tail[0]
+            self.direction = (next_step[0] - self.snake[0][0], next_step[1] - self.snake[0][1])
+        else:
             for direction in DIRECTIONS:
-                neighbor = (head[0] + direction[0], head[1] + direction[1])
+                neighbor = (self.snake[0][0] + direction[0], self.snake[0][1] + direction[1])
                 if (0 <= neighbor[0] < GRID_WIDTH and 0 <= neighbor[1] < GRID_HEIGHT) and neighbor not in self.snake:
                     self.direction = direction
                     break
@@ -111,21 +150,22 @@ class SnakeGame:
     def check_collision(self):
         head = self.snake[0]
         if head in self.snake[1:]:
-            return True  # Collision with itself
+            return True
         if not (0 <= head[0] < GRID_WIDTH and 0 <= head[1] < GRID_HEIGHT):
-            return True  # Collision with walls
+            return True
         return False
 
     def draw_board(self):
         self.canvas.delete("all")
-        for x, y in self.snake:
-            self.canvas.create_rectangle(x * CELL_SIZE, y * CELL_SIZE, (x + 1) * CELL_SIZE, (y + 1) * CELL_SIZE, fill="green")
+        for (x, y), color in zip(self.snake, self.snake_segments_colors):
+            self.canvas.create_rectangle(x * CELL_SIZE, y * CELL_SIZE, (x + 1) * CELL_SIZE, (y + 1) * CELL_SIZE, fill=color)
         food_x, food_y = self.food
-        self.canvas.create_rectangle(food_x * CELL_SIZE, food_y * CELL_SIZE, (food_x + 1) * CELL_SIZE, (food_y + 1) * CELL_SIZE, fill="red")
+        self.canvas.create_rectangle(food_x * CELL_SIZE, food_y * CELL_SIZE, (food_x + 1) * CELL_SIZE, (food_y + 1) * CELL_SIZE, fill=self.food_color)
+
+        self.score_label.config(text=f"Score: {len(self.snake) - 3}")
 
     def flash_and_restart(self):
         self.running = False
-        # Flash the canvas to indicate game over
         for _ in range(5):
             self.canvas.config(bg='red')
             self.root.update()
@@ -133,7 +173,6 @@ class SnakeGame:
             self.canvas.config(bg='black')
             self.root.update()
             time.sleep(0.1)
-        # Restart the game
         self.start_game()
 
     def run(self):
@@ -145,17 +184,27 @@ class SnakeGame:
             self.move_snake()
 
             if self.snake[0] == self.food:
+                self.snake_segments_colors.insert(0, self.food_color)
                 self.food = self.random_food_position()
+                self.food_color = "#%06x" % random.randint(0, 0xFFFFFF)
+                
             else:
-                # Remove the tail to keep the snake the same length unless it eats food
-                self.snake.pop()
+                if len(self.snake) > 1:
+                    self.snake.pop()
+                    if len(self.snake_segments_colors) > len(self.snake):
+                        self.snake_segments_colors.pop()
 
             if self.check_collision():
                 self.flash_and_restart()
 
             self.draw_board()
             self.root.update()
+
             time.sleep(INITIAL_DELAY / 1000.0)
+
+    def set_direction(self, direction):
+        if (direction[0] != -self.direction[0] or direction[1] != -self.direction[1]):
+            self.direction = direction
 
 if __name__ == "__main__":
     main()
