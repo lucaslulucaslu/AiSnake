@@ -1,7 +1,7 @@
-import tkinter as tk
+import heapq
 import random
 import time
-import heapq
+import tkinter as tk
 
 # Define constants
 GRID_WIDTH = 24
@@ -34,22 +34,16 @@ class SnakeGame:
         self.score_label = tk.Label(self.root, text="Score: 0", font=("Helvetica", 14))
         self.score_label.pack()
 
-        self.canvas = tk.Canvas(self.root, width=WIDTH, height=HEIGHT, bg="black")
+        self.canvas = tk.Canvas(self.root, width=WIDTH, height=HEIGHT, bg="lightblue")
         self.canvas.pack()
-
-        # Keyboard bindings for manual control
-        self.root.bind("<Up>", lambda e: self.set_direction(UP))
-        self.root.bind("<Down>", lambda e: self.set_direction(DOWN))
-        self.root.bind("<Left>", lambda e: self.set_direction(LEFT))
-        self.root.bind("<Right>", lambda e: self.set_direction(RIGHT))
 
     def start_game(self):
         self.running = True
-        self.snake = [(5, 5), (6, 5), (7, 5)]  # Reset initial snake position
-        self.snake_segments_colors = ["green"] * len(self.snake)  # Initial snake segments color
+        self.snake = [(5, 5), (6, 5), (7, 5), (8, 5), (9, 5)]  # Initial snake position with 5 segments
+        self.snake_segments_colors = ["#%06x" % random.randint(0, 0xFFFFFF) if random.randint(0, 0xFFFFFF) != 0x000000 else "#%06x" % random.randint(1, 0xFFFFFF) for _ in self.snake]  # Random colors for initial snake segments
         self.direction = RIGHT
         self.food = self.random_food_position()
-        self.food_color = "#%06x" % random.randint(0, 0xFFFFFF)
+        self.food_color = "#%06x" % random.randint(0, 0xFFFFFF) if random.randint(0, 0xFFFFFF) != 0x000000 else "#%06x" % random.randint(1, 0xFFFFFF)
 
     def random_food_position(self):
         while True:
@@ -158,11 +152,11 @@ class SnakeGame:
     def draw_board(self):
         self.canvas.delete("all")
         for (x, y), color in zip(self.snake, self.snake_segments_colors):
-            self.canvas.create_rectangle(x * CELL_SIZE, y * CELL_SIZE, (x + 1) * CELL_SIZE, (y + 1) * CELL_SIZE, fill=color)
+            self.canvas.create_rectangle(x * CELL_SIZE, y * CELL_SIZE, (x + 1) * CELL_SIZE, (y + 1) * CELL_SIZE, fill=color, outline="black", width=2)  # Increased edge width
         food_x, food_y = self.food
         self.canvas.create_rectangle(food_x * CELL_SIZE, food_y * CELL_SIZE, (food_x + 1) * CELL_SIZE, (food_y + 1) * CELL_SIZE, fill=self.food_color)
 
-        self.score_label.config(text=f"Score: {len(self.snake) - 3}")
+        self.score_label.config(text=f"Score: {len(self.snake) - 5}")
 
     def flash_and_restart(self):
         self.running = False
@@ -186,8 +180,7 @@ class SnakeGame:
             if self.snake[0] == self.food:
                 self.snake_segments_colors.insert(0, self.food_color)
                 self.food = self.random_food_position()
-                self.food_color = "#%06x" % random.randint(0, 0xFFFFFF)
-                
+                self.food_color = "#%06x" % random.randint(0, 0xFFFFFF) if random.randint(0, 0xFFFFFF) != 0x000000 else "#%06x" % random.randint(1, 0xFFFFFF)
             else:
                 if len(self.snake) > 1:
                     self.snake.pop()
@@ -201,10 +194,6 @@ class SnakeGame:
             self.root.update()
 
             time.sleep(INITIAL_DELAY / 1000.0)
-
-    def set_direction(self, direction):
-        if (direction[0] != -self.direction[0] or direction[1] != -self.direction[1]):
-            self.direction = direction
 
 if __name__ == "__main__":
     main()
